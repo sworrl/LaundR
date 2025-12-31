@@ -1,0 +1,16 @@
+App(
+    appid="laundr",
+    name="LaundR",
+    apptype=FlipperAppType.EXTERNAL,
+    entry_point="laundr_app",
+    requires=["gui"],
+    stack_size=8 * 1024,  # Increased from 4KB to 8KB to fix MPU fault
+    fap_icon="laundr.png",
+    fap_category="NFC",
+    fap_version="4.0",
+    fap_description="Non-destructive laundry card editor with shadow file system",
+    fap_author="LaundR Project",
+    fap_weburl="https://github.com/your-repo/laundr",
+    sources=["laundr_simple.c"],
+    fap_libs=[],
+)

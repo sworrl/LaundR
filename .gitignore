@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+
+# User data (created at runtime)
+user_data/laundr_config.json
+user_data/confirmed_values.json
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Flipper build artifacts
+flipper_app/output/
+*.fap
+
+# Archives and backups
+*.tar.gz
+*.zip
+backups/
+
+# Claude Code
+.claude/
