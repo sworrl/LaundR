@@ -83,7 +83,7 @@ No dependencies required - uses Python standard library only!
 ### Basic Usage
 ```bash
 # Open a card file
-python3 laundr.py test_cards/MFC_1K_2025-12-19_13,09,25.nfc
+python3 laundr.py /path/to/your/card.nfc
 
 # Or use File → Open from the GUI
 python3 laundr.py
@@ -242,19 +242,9 @@ LaundR/
 │   ├── TRANSACTION_TRACKING.md      # Transaction rules guide
 │   ├── LEGIT_MODE_IMPLEMENTATION.md # Legit vs Hack mode
 │   ├── CARD_WRITING_GUIDE.md        # How to write to cards
-│   ├── FLIPPER_CSC_PARSER_FIX.md    # Flipper checksum fix
-│   └── SESSION_FINAL_SUMMARY.md     # All improvements
+│   └── FLIPPER_CSC_PARSER_FIX.md    # Flipper checksum fix
 │
-├── tests/                  # Test scripts
-│   ├── test_flipper_format.py       # Format verification
-│   ├── test_legit_mode.py           # Legit mode tests
-│   └── test_csc_detection.py        # CSC detection tests
-│
-├── test_cards/             # Sample card dumps
-│   ├── MFC_1K_2025-12-19_13,09,25.nfc  # CSC Service Works
-│   └── MFC_1K_2025-11-07_12,49,04.nfc  # U-Best Wash
-│
-└── user_data/              # User configuration
+└── user_data/              # User configuration (created at runtime)
     ├── laundr_config.json           # App settings
     └── confirmed_values.json        # ML confirmed values
 ```
@@ -554,7 +544,7 @@ Help expand LaundR's capabilities by contributing .nfc card dumps from different
 ```bash
 # Fork repo, then:
 git checkout -b add-my-cards
-# Add files to test_cards/contributed/
+# Add files to contributed_cards/
 git commit -m "Add [Operator] cards from [Region]"
 # Submit PR
 ```
