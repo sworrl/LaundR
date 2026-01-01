@@ -71,7 +71,7 @@ Decodes **ALL** values shown by Flipper Zero plus hidden data:
 ### Installation
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/LaundR.git
+git clone https://github.com/sworrl/LaundR.git
 cd LaundR
 
 # Run the application
