@@ -24,7 +24,6 @@ Thumbs.db
 
 # Flipper build artifacts
 flipper_app/output/
-*.fap
 
 # Archives and backups
 *.tar.gz
