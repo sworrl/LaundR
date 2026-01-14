@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    NFC Host Card Emulation service configuration for LaunDRoid
+
+    NOTE: This service is for ISO-DEP (ISO 14443-4) only.
+    MIFARE Classic cards use ISO 14443-3A with proprietary Crypto-1 authentication
+    and CANNOT be emulated via Android HCE.
+
+    For actual MIFARE Classic emulation, use:
+    - Flipper Zero
+    - Proxmark3
+    - Chameleon Mini/Ultra
+-->
+<host-apdu-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/hce_service_description"
+    android:requireDeviceUnlock="false">
+
+    <!--
+        Generic AID for payment systems (for testing)
+        Real CSC readers use MIFARE Classic, not ISO-DEP, so this won't work with them.
+        This is provided for educational purposes and testing with ISO-DEP readers.
+    -->
+    <aid-group android:category="other"
+        android:description="@string/hce_aid_description">
+
+        <!-- Proprietary AID for CSC emulation testing -->
+        <aid-filter android:name="F04353434345534300"/>
+
+        <!-- Fallback generic AID -->
+        <aid-filter android:name="F0010203040506"/>
+
+    </aid-group>
+</host-apdu-service>

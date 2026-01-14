@@ -7,7 +7,7 @@
 | Flipper Zero Display | Value | LaundR Location | Hex Data |
 |---------------------|-------|-----------------|----------|
 | **CSC Service Works** | ✓ | Block 2, bytes 0-1 | `01 01` |
-| **UID: 3046226219** | ✓ | Block 0, bytes 0-3 (LE) | `2B B9 91 B5` |
+| **UID: 2061556952** | ✓ | Block 0, bytes 0-3 (LE) | `7A E3 4C D8` |
 | **Balance: $9.00** | ✓ | Block 4, bytes 0-1 | `84 03` |
 | **Last Top-up: $11.50** | ✓ | Block 2, bytes 9-10 | `7E 04` |
 | **Top-up Count: 2** | ✓ | Block 4, bytes 2-3 | `02 00` |
@@ -21,14 +21,14 @@
 
 ### Block 0: UID & Manufacturing Data
 ```
-Raw: 2B B9 91 B5 B6 08 04 00 04 F0 35 6B 3D B6 E9 90
+Raw: 7A E3 4C D8 0D 08 04 00 62 F1 4A 7C 5E C3 A2 81
 ```
 
 | Bytes | Data | Description | Value |
 |-------|------|-------------|-------|
-| 0-3 | `2B B9 91 B5` | UID (Big Endian) | 0x2BB991B5 |
-| 0-3 | (Little Endian) | UID as shown by Flipper | **3,046,226,219** |
-| 4 | `B6` | BCC (Check Byte) | XOR of UID bytes ✓ Valid |
+| 0-3 | `7A E3 4C D8` | UID (Big Endian) | 0x7AE34CD8 |
+| 0-3 | (Little Endian) | UID as shown by Flipper | **2,061,556,952** |
+| 4 | `0D` | BCC (Check Byte) | XOR of UID bytes ✓ Valid |
 | 5 | `08` | SAK (Select Acknowledge) | Mifare Classic 1K |
 | 6-7 | `04 00` | ATQA | Card type identifier |
 | 8-15 | — | Manufacturer Data | Locked sector |
@@ -200,8 +200,8 @@ Raw: 41 5A 37 36 30 32 30 34 36 02 02 00 00 00 00 00
 |-------|-------|--------|
 | **Provider** | CSC Service Works | Block 2:0-1 |
 | **Card ID** | AZ7602046 | Block 13:0-8 |
-| **UID (Decimal)** | 3,046,226,219 | Block 0:0-3 |
-| **UID (Hex)** | 0x2BB991B5 | Block 0:0-3 |
+| **UID (Decimal)** | 2,061,556,952 | Block 0:0-3 |
+| **UID (Hex)** | 0x7AE34CD8 | Block 0:0-3 |
 | **Current Balance** | $9.00 | Block 4:0-1 |
 | **Top-up Counter** | 2 | Block 4:2-3 |
 | **Last Top-up** | $11.50 | Block 2:9-10 |

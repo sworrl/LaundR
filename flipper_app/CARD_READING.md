@@ -337,7 +337,7 @@ Can: Write to card with LaundR (if magic card)
    → Save → "csc_card_2025.nfc"
 
 2. Result:
-   Block 0: 2B B9 91 B5 ...  (UID)
+   Block 0: 7A E3 4C D8 ...  (UID)
    Block 1: ... 62 EE 11 01  (CSC signature)
    Block 2: 01 01 ...        (Transaction data)
    Block 4: 84 03 02 00 ...  (Balance: $9.00)

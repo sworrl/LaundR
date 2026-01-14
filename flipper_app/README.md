@@ -190,6 +190,63 @@ Real-time display:
 
 ---
 
+## Operational Security for Researchers
+
+When conducting security research on payment card systems, it is critical to understand the tracking vectors present in MIFARE Classic cards. Failure to sanitize identifiable data may compromise your research anonymity and create correlation opportunities for system operators.
+
+### Unique Identifiers Present in Card Dumps
+
+| Block | Data | Tracking Risk |
+|-------|------|---------------|
+| Block 0, Bytes 0-3 | **UID (Unique Identifier)** | **HIGH** - Globally unique 4-byte serial number burned into card at manufacture. Logged by readers on every transaction. |
+| Block 0, Byte 4 | **BCC (Block Check Character)** | Must match UID XOR (recalculate after UID change) |
+| Block 0, Bytes 5-7 | **SAK/ATQA** | Card type identifier - generally safe to leave |
+| Block 1 | **Manufacturer Data** | May contain batch/production identifiers |
+| Block 13 | **Card Serial String** | Often contains human-readable card ID (e.g., "AZ7602046") printed on physical card |
+| Block 2 | **Transaction ID** | Incrementing counter that can fingerprint usage patterns |
+
+### Recommended Sanitization Procedure
+
+Before conducting field research:
+
+```bash
+# 1. Generate randomized UID (4 bytes)
+# Replace Block 0 bytes 0-3 with random values
+# Example: 7A E3 4C D8 → A7 3C F2 88
+
+# 2. Recalculate BCC (Block 0 byte 4)
+# BCC = UID[0] XOR UID[1] XOR UID[2] XOR UID[3]
+# Example: A7 ^ 3C ^ F2 ^ 88 = 9D
+
+# 3. Randomize card serial string (Block 13)
+# Replace ASCII identifier with random alphanumeric
+
+# 4. Reset transaction counters (Block 2)
+# Prevents correlation with legitimate usage history
+```
+
+### Why This Matters
+
+1. **Reader Logging**: Most commercial readers log UID + timestamp for every authentication attempt, regardless of transaction success
+2. **Correlation Attacks**: Operators can correlate test UIDs with physical locations, times, and potentially surveillance footage
+3. **Blacklisting**: Identified research UIDs may be added to blocklists, invalidating future research attempts
+4. **Legal Exposure**: Sanitized research data provides plausible deniability and demonstrates good-faith research methodology
+
+### Flipper Zero Considerations
+
+The Flipper Zero's NFC emulation uses the UID from your `.nfc` file. Modify the UID **in the file** before loading into LaundR:
+
+```
+# In your .nfc file, change:
+UID: 7A E3 4C D8
+# To a randomized value:
+UID: A7 3C F2 88
+```
+
+**Note**: Some readers perform UID validation against backend databases. A randomized UID may trigger "unknown card" errors on online systems - this itself is useful research data indicating server-side validation.
+
+---
+
 ## Usage
 
 ### 1. Prepare Your Card Dump

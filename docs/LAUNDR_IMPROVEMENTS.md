@@ -30,7 +30,7 @@
 Added specialized decoders for:
 
 #### Block 0 (UID)
-- UID: 2B B9 91 B5
+- UID: 7A E3 4C D8
 - BCC check byte
 - SAK, ATQA values
 

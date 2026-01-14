@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LaunDRoid</string>
+    <string name="hce_service_description">CSC Card Emulation (ISO-DEP only - not MIFARE Classic)</string>
+    <string name="hce_aid_description">CSC ServiceWorks Card Emulation</string>
+</resources>

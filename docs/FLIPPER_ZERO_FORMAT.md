@@ -15,7 +15,7 @@ Version: 4
 # Device type can be ISO14443-3A, ...
 Device type: Mifare Classic
 # UID is common for all formats
-UID: 2B B9 91 B5
+UID: 7A E3 4C D8
 # ISO14443-3A specific data
 ATQA: 00 04
 SAK: 08
@@ -23,7 +23,7 @@ SAK: 08
 Mifare Classic type: 1K
 Data format version: 2
 # Mifare Classic blocks, '??' means unknown data
-Block 0: 2B B9 91 B5 B6 08 04 00 04 F0 35 6B 3D B6 E9 90
+Block 0: 7A E3 4C D8 0D 08 04 00 62 F1 4A 7C 5E C3 A2 81
 Block 1: 30 30 00 01 00 00 01 84 28 30 00 00 01 11 EE 62
 ...
 ```
@@ -35,7 +35,7 @@ Block 1: 30 30 00 01 00 00 01 84 28 30 00 00 01 11 EE 62
   ```
   Data format version: 2
   # Mifare Classic blocks, '??' means unknown data
-  Block 0: 2B B9 91 B5...
+  Block 0: 7A E3 4C D8...
   ```
 
 - **WRONG:**
@@ -43,7 +43,7 @@ Block 1: 30 30 00 01 00 00 01 84 28 30 00 00 01 11 EE 62
   Data format version: 2
   # Mifare Classic blocks, '??' means unknown data
   <BLANK LINE>
-  Block 0: 2B B9 91 B5...
+  Block 0: 7A E3 4C D8...
   ```
 
 **Why:** Flipper Zero's parser expects blocks to start immediately after the comment line. A blank line will cause parsing errors.
@@ -264,7 +264,7 @@ Comment lines (starting with `#`) are ignored by Flipper Zero's parser. This mea
 # MODIFIED BY LAUNDR - Balance changed to $10.00
 # Operator: CSC Service Works
 # Date: 2025-12-21
-Block 0: 2B B9 91 B5 B6 08 04 00 04 F0 35 6B 3D B6 E9 90
+Block 0: 7A E3 4C D8 0D 08 04 00 62 F1 4A 7C 5E C3 A2 81
 ```
 
 This file will work perfectly on Flipper Zero, and the comments help track changes.
