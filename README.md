@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/laundr_logo.png" alt="LaundR Logo" width="200" height="200">
+  <img src="assets/LaundR_app_256.png" alt="LaundR Logo" width="200" height="200">
 </p>
 
 <h1 align="center">LaundR</h1>
