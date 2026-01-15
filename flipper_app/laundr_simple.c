@@ -44,10 +44,20 @@ typedef struct {
 #define LAUNDR_TRANSACTION_LOG_FILE EXT_PATH("apps_data/laundr/logs/transactions.log")
 #define LAUNDR_TRANSACTION_CSV_FILE EXT_PATH("apps_data/laundr/logs/transactions.csv")
 #define LAUNDR_LOG_MAX_SIZE (64 * 1024) // 64KB max log size
+#define LAUNDR_MASTERCARD_STATS_FILE EXT_PATH("apps_data/laundr/mastercard_stats.txt")
 
 // Version info - Codename: Thunder (5.x series - Default Emulation & Write Blocking)
-#define LAUNDR_VERSION "5.58"
-#define LAUNDR_CODENAME "KeyB Hunter Thunder"  // 5.58 = Added Write Nonce Captured display for KeyB tracking
+#define LAUNDR_VERSION "5.61"
+#define LAUNDR_CODENAME "Purple Thunder"  // 5.61 = Fixed persistent stats + Clear Stats menu
+
+// Custom solid purple LED notification (red + blue = purple)
+static const NotificationSequence sequence_solid_purple = {
+    &message_red_255,
+    &message_green_0,
+    &message_blue_255,
+    &message_do_not_reset,
+    NULL,
+};
 #define LAUNDR_BUILD_DATE __DATE__
 #define LAUNDR_BUILD_TIME __TIME__
 
@@ -89,6 +99,7 @@ typedef enum {
     LaundRSubmenuIndexEditBlock,
     LaundRSubmenuIndexViewLog,
     LaundRSubmenuIndexViewTransactionStats,  // View transaction history and totals
+    LaundRSubmenuIndexClearStats,            // Clear transaction stats
     LaundRSubmenuIndexClearLog,
     LaundRSubmenuIndexMasterKeyAudit,  // NEW: Separate Master-Key action
     LaundRSubmenuIndexHackMode,
@@ -522,6 +533,78 @@ static void laundr_load_historical_stats(LaundRApp* app) {
 
     FURI_LOG_I(TAG, "Loaded history: %lu txns, $%.2f saved",
         app->history_tx_count, (double)(-app->history_total_saved) / 100);
+}
+
+// ============================================================================
+// MASTER CARD PERSISTENT STATS
+// ============================================================================
+
+// Save master card stats to persistent file
+// Format: transaction_count,total_saved_cents,reads,writes,writes_blocked
+static void laundr_save_mastercard_stats(LaundRApp* app) {
+    if(!app) return;
+
+    Storage* storage = furi_record_open(RECORD_STORAGE);
+
+    storage_simply_mkdir(storage, EXT_PATH("apps_data"));
+    storage_simply_mkdir(storage, LAUNDR_APP_DATA_DIR);
+
+    File* file = storage_file_alloc(storage);
+
+    if(storage_file_open(file, LAUNDR_MASTERCARD_STATS_FILE, FSAM_WRITE, FSOM_CREATE_ALWAYS)) {
+        char buffer[128];
+        snprintf(buffer, sizeof(buffer), "%lu,%ld,%lu,%lu,%lu\n",
+            app->transaction_count,
+            app->history_total_saved,
+            app->reads,
+            app->writes,
+            app->writes_blocked);
+        storage_file_write(file, buffer, strlen(buffer));
+        storage_file_close(file);
+        FURI_LOG_I(TAG, "Saved master card stats: %lu txns", app->transaction_count);
+    }
+
+    storage_file_free(file);
+    furi_record_close(RECORD_STORAGE);
+}
+
+// Load master card stats from persistent file
+static void laundr_load_mastercard_stats(LaundRApp* app) {
+    if(!app) return;
+
+    Storage* storage = furi_record_open(RECORD_STORAGE);
+    File* file = storage_file_alloc(storage);
+
+    if(storage_file_open(file, LAUNDR_MASTERCARD_STATS_FILE, FSAM_READ, FSOM_OPEN_EXISTING)) {
+        char buffer[128];
+        size_t bytes_read = storage_file_read(file, buffer, sizeof(buffer) - 1);
+        buffer[bytes_read] = '\0';
+        storage_file_close(file);
+
+        // Parse: transaction_count,total_saved_cents,reads,writes,writes_blocked
+        uint32_t tx_count = 0;
+        int32_t total_saved = 0;
+        uint32_t reads = 0;
+        uint32_t writes = 0;
+        uint32_t writes_blocked = 0;
+
+        if(sscanf(buffer, "%lu,%ld,%lu,%lu,%lu",
+                  &tx_count, &total_saved, &reads, &writes, &writes_blocked) >= 1) {
+            app->transaction_count = tx_count;
+            app->history_tx_count = tx_count;  // Sync all-time with persisted count
+            app->history_total_saved = total_saved;
+            app->reads = reads;
+            app->writes = writes;
+            app->writes_blocked = writes_blocked;
+            FURI_LOG_I(TAG, "Loaded master card stats: %lu txns, %lu reads, %lu writes",
+                tx_count, reads, writes);
+        }
+    } else {
+        FURI_LOG_I(TAG, "No master card stats file (first run)");
+    }
+
+    storage_file_free(file);
+    furi_record_close(RECORD_STORAGE);
 }
 
 // ============================================================================
@@ -1575,8 +1658,8 @@ static void laundr_start_emulation(LaundRApp* app) {
     view_set_input_callback(widget_view, laundr_widget_input_callback);
     view_set_context(widget_view, app);
 
-    // Start emulation notification BEFORE switching view
-    notification_message(app->notifications, &sequence_blink_start_cyan);
+    // Start emulation notification BEFORE switching view - solid purple (no blink)
+    notification_message(app->notifications, &sequence_solid_purple);
 
     // Set up MFKey32 nonce capture - passive key harvesting
     app->mfkey_cuid = (uint32_t)current_uid[0] << 24 |
@@ -3081,6 +3164,9 @@ static void laundr_rebuild_submenu(LaundRApp* app) {
         app->submenu, "Transaction Stats", LaundRSubmenuIndexViewTransactionStats, laundr_submenu_callback, app);
 
     submenu_add_item(
+        app->submenu, "Clear Stats", LaundRSubmenuIndexClearStats, laundr_submenu_callback, app);
+
+    submenu_add_item(
         app->submenu, "Read Reader/Card", LaundRSubmenuIndexReadCard, laundr_submenu_callback, app);
 
     submenu_add_item(
@@ -3226,10 +3312,10 @@ static void laundr_load_csc_mastercard(LaundRApp* app) {
     memset(app->modified_block_valid, 0, sizeof(app->modified_block_valid));
     memset(app->emulation_blocks, 0, sizeof(app->emulation_blocks));
     memset(app->emulation_block_valid, 0, sizeof(app->emulation_block_valid));
-    app->reads = 0;
-    app->writes = 0;
-    app->writes_blocked = 0;
-    app->transaction_count = 0;
+
+    // Load persistent master card stats (transaction count, reads, writes, etc.)
+    // This preserves stats across sessions instead of resetting to 0
+    laundr_load_mastercard_stats(app);
 
     // CSC ServiceWorks master key
     const uint8_t csc_key_a[] = {0xEE, 0xB7, 0x06, 0xFC, 0x71, 0x4F};
@@ -3814,6 +3900,37 @@ static void laundr_submenu_callback(void* context, uint32_t index) {
         break;
     }
 
+    case LaundRSubmenuIndexClearStats: {
+        // Clear all transaction stats
+        app->transaction_count = 0;
+        app->history_tx_count = 0;
+        app->history_total_saved = 0;
+        app->reads = 0;
+        app->writes = 0;
+        app->writes_blocked = 0;
+
+        // Save cleared stats to file
+        laundr_save_mastercard_stats(app);
+
+        // Also clear the CSV transaction log
+        Storage* storage = furi_record_open(RECORD_STORAGE);
+        storage_simply_remove(storage, LAUNDR_TRANSACTION_CSV_FILE);
+        furi_record_close(RECORD_STORAGE);
+
+        widget_reset(app->widget);
+        widget_add_string_element(
+            app->widget, 64, 20, AlignCenter, AlignTop, FontPrimary, "Stats Cleared");
+        widget_add_string_element(
+            app->widget, 64, 35, AlignCenter, AlignTop, FontSecondary, "All counters reset to 0");
+
+        View* widget_view = widget_get_view(app->widget);
+        view_set_input_callback(widget_view, laundr_widget_input_callback);
+        view_set_context(widget_view, app);
+
+        view_dispatcher_switch_to_view(app->view_dispatcher, LaundRViewWidget);
+        break;
+    }
+
     case LaundRSubmenuIndexClearLog: {
         laundr_log_clear();
 
@@ -4214,6 +4331,9 @@ static uint32_t laundr_back_to_submenu_callback(void* context) {
         laundr_log_write("Reads: %lu, Writes: %lu, Blocked: %lu", app->reads, app->writes, app->writes_blocked);
         laundr_log_write("Transactions: %lu", app->transaction_count);
 
+        // Save master card stats to persistent storage
+        laundr_save_mastercard_stats(app);
+
         // === END TRANSACTION TRACKING ===
 
         // Now free the listener
@@ -4331,6 +4451,9 @@ static LaundRApp* laundr_app_alloc(void) {
 }
 
 static void laundr_app_free(LaundRApp* app) {
+    // Save master card stats before cleanup (ensures stats persist on app exit)
+    laundr_save_mastercard_stats(app);
+
     // Stop and free deferred stop timer
     if(app->stop_timer) {
         furi_timer_stop(app->stop_timer);
