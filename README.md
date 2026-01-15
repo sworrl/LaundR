@@ -21,7 +21,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Version-5.61-blue?style=for-the-badge" alt="Version 5.61">
   <img src="https://img.shields.io/badge/Android-14+-green?style=for-the-badge&logo=android&logoColor=white" alt="Android 14+">
-  <img src="https://img.shields.io/badge/Flipper_Zero-Unleashed-orange?style=for-the-badge" alt="Flipper Zero">
+  <img src="https://img.shields.io/badge/Flipper_Zero-Momentum-orange?style=for-the-badge" alt="Flipper Zero">
   <img src="https://img.shields.io/badge/Python-3.8+-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.8+">
 </p>
 
@@ -308,7 +308,6 @@ cd flipper_app
 ./build_flipper_app.sh -b              # Build only (use cached firmware)
 ./build_flipper_app.sh -d              # Build and deploy to Flipper
 ./build_flipper_app.sh -f momentum     # Use Momentum firmware
-./build_flipper_app.sh -f unleashed    # Use Unleashed firmware
 ./build_flipper_app.sh -c              # Clean build
 ```
 
@@ -316,8 +315,8 @@ cd flipper_app
 
 ```bash
 # Clone firmware
-git clone --depth 1 https://github.com/DarkFlippers/unleashed-firmware.git
-cd unleashed-firmware
+git clone --depth 1 https://github.com/Next-Flip/Momentum-Firmware.git
+cd Momentum-Firmware
 
 # Copy LaundR source
 mkdir -p applications_user/laundr
@@ -783,7 +782,7 @@ Nonces only capture on FAILED auth attempts. If master card has the key, success
 
 ### Testing
 
-- Test on both Unleashed and Momentum firmware
+- Test on Momentum firmware
 - Verify card parsing on Flipper's built-in NFC app
 - Include test cards for new features
 
@@ -849,7 +848,6 @@ This software is provided for authorized security research. The authors assume n
 - **Proxmark3 Community** - Key research
 - **MifareClassicTool** - Android NFC foundation
 - **Security Researchers** - Vulnerability discovery
-- **DarkFlippers** - Unleashed firmware
 - **Next-Flip** - Momentum firmware
 
 ---

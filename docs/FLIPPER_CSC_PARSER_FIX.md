@@ -214,7 +214,6 @@ new_b2[15] = checksum  # Set byte 15 to make total XOR = 0
 
 ### Custom Firmware with CSC Parser
 - ✅ [Momentum Firmware](https://github.com/Next-Flip/Momentum-Firmware) - PR #137
-- ✅ [Unleashed Firmware](https://github.com/DarkFlippers/unleashed-firmware) (may include)
 - ✅ [RogueMaster Firmware](https://github.com/RogueMaster/flipperzero-firmware-wPlugins) (may include)
 
 **To check if you have the CSC parser:**

@@ -323,7 +323,7 @@ python3 test_flipper_format.py
 ### Flipper Zero CSC Parser
 - **Source:** [Momentum Firmware PR #137](https://github.com/Next-Flip/Momentum-Firmware/pull/137)
 - **Developer:** zinongli
-- **Requirement:** Custom firmware (Momentum, Unleashed, or RogueMaster)
+- **Requirement:** Custom firmware (Momentum or RogueMaster)
 - **Validation:** Block 2 XOR checksum must equal 0x00
 
 ### MIFARE Classic Value Blocks

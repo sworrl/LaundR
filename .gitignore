@@ -26,7 +26,7 @@ Thumbs.db
 flipper_app/output/
 flipper_build/
 
-# Firmware directories (momentum, unleashed, official, etc.)
+# Firmware directories (momentum, official, etc.)
 *-firmware/
 
 # Archives and backups

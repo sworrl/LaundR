@@ -15,7 +15,7 @@
 # Flags:
 #   -b, --build      Build only using cached firmware (non-interactive)
 #   -d, --deploy     Auto-deploy to Flipper if mounted (no prompt)
-#   -f, --firmware   Firmware type: official, momentum, unleashed, roguemaster
+#   -f, --firmware   Firmware type: official, momentum, roguemaster
 #   -v, --version    Firmware version (e.g., dev, mntm-005, 1.0.0)
 #   -c, --clean      Clean build (remove old artifacts first)
 #   -q, --quiet      Quiet mode (less output)
@@ -86,7 +86,7 @@ while [[ $# -gt 0 ]]; do
             echo "Flags:"
             echo "  -b, --build      Build using cached firmware (non-interactive)"
             echo "  -d, --deploy     Auto-deploy to Flipper if mounted (no prompt)"
-            echo "  -f, --firmware   Firmware type: official, momentum, unleashed, roguemaster"
+            echo "  -f, --firmware   Firmware type: official, momentum, roguemaster"
             echo "  -v, --version    Firmware version (e.g., dev, mntm-005, 1.0.0)"
             echo "  -c, --clean      Clean build (remove old artifacts first)"
             echo "  -q, --quiet      Quiet mode (less output)"
@@ -135,14 +135,12 @@ TYPE_FILE="$BUILD_DIR/.current_fw_type"
 declare -A FIRMWARE_REPOS=(
     ["official"]="https://github.com/flipperdevices/flipperzero-firmware.git"
     ["momentum"]="https://github.com/Next-Flip/Momentum-Firmware.git"
-    ["unleashed"]="https://github.com/DarkFlippers/unleashed-firmware.git"
     ["roguemaster"]="https://github.com/RogueMaster/flipperzero-firmware-wPlugins.git"
 )
 
 declare -A FIRMWARE_API=(
     ["official"]="https://api.github.com/repos/flipperdevices/flipperzero-firmware"
     ["momentum"]="https://api.github.com/repos/Next-Flip/Momentum-Firmware"
-    ["unleashed"]="https://api.github.com/repos/DarkFlippers/unleashed-firmware"
     ["roguemaster"]="https://api.github.com/repos/RogueMaster/flipperzero-firmware-wPlugins"
 )
 
@@ -184,7 +182,6 @@ select_firmware() {
     # Fetch versions for all firmware types
     OFFICIAL_VERSIONS=$(fetch_versions_for_type "official")
     MOMENTUM_VERSIONS=$(fetch_versions_for_type "momentum")
-    UNLEASHED_VERSIONS=$(fetch_versions_for_type "unleashed")
     ROGUEMASTER_VERSIONS=$(fetch_versions_for_type "roguemaster")
 
     # Get current configuration if exists
@@ -246,24 +243,6 @@ select_firmware() {
                 MENU_TYPES[$idx]="momentum"
                 MENU_VERSIONS[$idx]="$ver"
                 MENU_LABELS[$idx]="Momentum $ver"
-                log "  ${CYAN}[$idx]${NC} $ver"
-                ((idx++))
-            fi
-        done
-    else
-        log "  ${RED}(Could not fetch)${NC}"
-    fi
-    log ""
-
-    # Unleashed
-    log "${GREEN}Unleashed Firmware:${NC}"
-    if [ -n "$UNLEASHED_VERSIONS" ]; then
-        mapfile -t UNL_ARRAY <<< "$UNLEASHED_VERSIONS"
-        for ver in "${UNL_ARRAY[@]}"; do
-            if [ -n "$ver" ]; then
-                MENU_TYPES[$idx]="unleashed"
-                MENU_VERSIONS[$idx]="$ver"
-                MENU_LABELS[$idx]="Unleashed $ver"
                 log "  ${CYAN}[$idx]${NC} $ver"
                 ((idx++))
             fi
@@ -373,7 +352,7 @@ fi
 # Validate firmware type
 if [ -z "${FIRMWARE_REPOS[$FIRMWARE_TYPE]}" ]; then
     echo -e "${RED}ERROR: Invalid firmware type: $FIRMWARE_TYPE${NC}"
-    echo "Valid types: official, momentum, unleashed, roguemaster"
+    echo "Valid types: official, momentum, roguemaster"
     exit 1
 fi
 
