@@ -24,6 +24,10 @@ Thumbs.db
 
 # Flipper build artifacts
 flipper_app/output/
+flipper_build/
+
+# Firmware directories (momentum, unleashed, official, etc.)
+*-firmware/
 
 # Archives and backups
 *.tar.gz
