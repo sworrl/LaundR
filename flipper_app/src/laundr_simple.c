@@ -51,6 +51,49 @@ typedef struct {
 #define LAUNDR_BUILD_DATE __DATE__
 #define LAUNDR_BUILD_TIME __TIME__
 
+// Custom orange blink for card writing (red + green = orange)
+static const NotificationSequence sequence_blink_orange = {
+    &message_red_255,
+    &message_green_128,
+    &message_blue_0,
+    &message_delay_100,
+    &message_red_0,
+    &message_green_0,
+    &message_delay_100,
+    &message_do_not_reset,
+    NULL,
+};
+
+// Solid green for write success
+static const NotificationSequence sequence_solid_green = {
+    &message_red_0,
+    &message_green_255,
+    &message_blue_0,
+    &message_vibro_on,
+    &message_delay_100,
+    &message_vibro_off,
+    &message_delay_500,
+    &message_green_0,
+    NULL,
+};
+
+// Solid red for write error
+static const NotificationSequence sequence_solid_red = {
+    &message_red_255,
+    &message_green_0,
+    &message_blue_0,
+    &message_vibro_on,
+    &message_delay_100,
+    &message_vibro_off,
+    &message_delay_100,
+    &message_vibro_on,
+    &message_delay_100,
+    &message_vibro_off,
+    &message_delay_500,
+    &message_red_0,
+    NULL,
+};
+
 // ============================================================================
 // TYPES
 // ============================================================================
@@ -2222,6 +2265,11 @@ static void laundr_write_to_card(LaundRApp* app) {
 
     view_dispatcher_switch_to_view(app->view_dispatcher, LaundRViewWidget);
 
+    // Start orange LED blink to indicate write mode waiting for card
+    if(app->notifications) {
+        notification_message(app->notifications, &sequence_blink_orange);
+    }
+
     // Allocate NFC instance for write operation
     Nfc* nfc = nfc_alloc();
     if(!nfc) {
@@ -2329,6 +2377,12 @@ static void laundr_write_to_card(LaundRApp* app) {
         nfc_free(nfc);
         app->write_in_progress = false;
         laundr_log_transaction("No card found after waiting");
+
+        // Stop orange LED and show red for timeout
+        if(app->notifications) {
+            notification_message(app->notifications, &sequence_solid_red);
+        }
+
         widget_reset(app->widget);
         widget_add_string_element(app->widget, 64, 20, AlignCenter, AlignTop, FontPrimary, "No Card Found");
         widget_add_string_element(app->widget, 64, 40, AlignCenter, AlignTop, FontSecondary, "Timed out waiting");
@@ -2397,6 +2451,11 @@ static void laundr_write_to_card(LaundRApp* app) {
 
         laundr_log_transaction("ERROR writing Block 4: %s", error_msg);
         laundr_log_system("Write to Card FAILED: %s", error_msg);
+
+        // Red LED + double vibro for write failure
+        if(app->notifications) {
+            notification_message(app->notifications, &sequence_solid_red);
+        }
 
         // Show error
         widget_reset(app->widget);
@@ -2489,9 +2548,9 @@ static void laundr_write_to_card(LaundRApp* app) {
 
     view_dispatcher_switch_to_view(app->view_dispatcher, LaundRViewWidget);
 
-    // Notify success
+    // Green LED + vibro for write success
     if(app->notifications) {
-        notification_message(app->notifications, &sequence_success);
+        notification_message(app->notifications, &sequence_solid_green);
     }
 }
 
@@ -3281,9 +3340,10 @@ static void laundr_load_csc_mastercard(LaundRApp* app) {
     memcpy(&app->original_blocks[3][10], key_b_ff, 6);
     app->original_block_valid[3] = true;
 
-    // Sector 1, Block 4: Balance ($50.00 = 5000 cents)
-    uint8_t block4[] = {0x88, 0x13, 0x0C, 0x00, 0x77, 0xEC, 0xF3, 0xFF,
-                        0x88, 0x13, 0x0C, 0x00, 0x04, 0xFB, 0x04, 0xFB};
+    // Sector 1, Block 4: Balance ($50.00 = 5000 cents) + Counter (16100 uses)
+    // Counter 16100 = 0x3EE4, inverted = 0xC11B
+    uint8_t block4[] = {0x88, 0x13, 0xE4, 0x3E, 0x77, 0xEC, 0x1B, 0xC1,
+                        0x88, 0x13, 0xE4, 0x3E, 0x04, 0xFB, 0x04, 0xFB};
     memcpy(app->original_blocks[4], block4, 16);
     app->original_block_valid[4] = true;
 

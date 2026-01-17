@@ -76,7 +76,7 @@ object MasterCard {
         val valHi = ((balanceCents shr 8) and 0xFF).toByte()
         val valInvLo = (valLo.toInt() xor 0xFF).toByte()
         val valInvHi = (valHi.toInt() xor 0xFF).toByte()
-        val counter: Short = 12  // Transaction counter
+        val counter: Short = 16100  // Uses remaining (~16000-16200 range)
         val cntLo = (counter.toInt() and 0xFF).toByte()
         val cntHi = ((counter.toInt() shr 8) and 0xFF).toByte()
         val cntInvLo = (cntLo.toInt() xor 0xFF).toByte()

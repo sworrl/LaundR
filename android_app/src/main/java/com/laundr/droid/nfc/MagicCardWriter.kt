@@ -159,15 +159,16 @@ object MagicCardWriter {
                 Log.d(TAG, "Unlock response (expected): ${e.message}")
             }
 
-            // Write all 64 blocks
+            // Write all 64 blocks using Gen1a backdoor write (0x43)
             for (blockIndex in 0 until 64) {
                 try {
-                    // Re-unlock before each block write
+                    // Re-unlock before each block write (required for Gen1a)
                     try { nfcA.transceive(GEN1A_UNLOCK) } catch (e: Exception) { }
 
-                    // Build write command: 0xA0 + block number + 16 bytes data
+                    // Build Gen1a backdoor write command: 0x43 + block number + 16 bytes data
+                    // Note: 0xA0 is standard MIFARE write which causes ERR 44 on some Gen1a cards
                     val writeCmd = ByteArray(18)
-                    writeCmd[0] = 0xA0.toByte()
+                    writeCmd[0] = 0x43.toByte()  // Gen1a backdoor write command
                     writeCmd[1] = blockIndex.toByte()
                     System.arraycopy(cardData.blocks[blockIndex], 0, writeCmd, 2, 16)
 

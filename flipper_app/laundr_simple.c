@@ -47,8 +47,8 @@ typedef struct {
 #define LAUNDR_MASTERCARD_STATS_FILE EXT_PATH("apps_data/laundr/mastercard_stats.txt")
 
 // Version info - Codename: Thunder (5.x series - Default Emulation & Write Blocking)
-#define LAUNDR_VERSION "5.61"
-#define LAUNDR_CODENAME "Purple Thunder"  // 5.61 = Fixed persistent stats + Clear Stats menu
+#define LAUNDR_VERSION "5.63"
+#define LAUNDR_CODENAME "Full Writer"  // 5.63 = Write entire card (all 64 blocks) + LED feedback + 16100 uses
 
 // Custom solid purple LED notification (red + blue = purple)
 static const NotificationSequence sequence_solid_purple = {
@@ -56,6 +56,49 @@ static const NotificationSequence sequence_solid_purple = {
     &message_green_0,
     &message_blue_255,
     &message_do_not_reset,
+    NULL,
+};
+
+// Custom yellow blink for card writing (red + green = yellow)
+static const NotificationSequence sequence_blink_yellow = {
+    &message_red_255,
+    &message_green_255,
+    &message_blue_0,
+    &message_delay_100,
+    &message_red_0,
+    &message_green_0,
+    &message_delay_100,
+    &message_do_not_reset,
+    NULL,
+};
+
+// Solid green for write success
+static const NotificationSequence sequence_solid_green = {
+    &message_red_0,
+    &message_green_255,
+    &message_blue_0,
+    &message_vibro_on,
+    &message_delay_100,
+    &message_vibro_off,
+    &message_delay_500,
+    &message_green_0,
+    NULL,
+};
+
+// Solid red for write error
+static const NotificationSequence sequence_solid_red = {
+    &message_red_255,
+    &message_green_0,
+    &message_blue_0,
+    &message_vibro_on,
+    &message_delay_100,
+    &message_vibro_off,
+    &message_delay_100,
+    &message_vibro_on,
+    &message_delay_100,
+    &message_vibro_off,
+    &message_delay_500,
+    &message_red_0,
     NULL,
 };
 #define LAUNDR_BUILD_DATE __DATE__
@@ -2305,6 +2348,11 @@ static void laundr_write_to_card(LaundRApp* app) {
 
     view_dispatcher_switch_to_view(app->view_dispatcher, LaundRViewWidget);
 
+    // Start orange LED blink to indicate write mode waiting for card
+    if(app->notifications) {
+        notification_message(app->notifications, &sequence_blink_yellow);
+    }
+
     // Allocate NFC instance for write operation
     Nfc* nfc = nfc_alloc();
     if(!nfc) {
@@ -2368,16 +2416,11 @@ static void laundr_write_to_card(LaundRApp* app) {
 
     // Note: CSC key and default key are included in known_keys array above
 
-    // Prepare blocks to write
-    MfClassicBlock block4, block8;
-    memcpy(block4.data, app->modified_blocks[4], 16);
-    memcpy(block8.data, app->modified_blocks[8], 16);
-
     app->write_in_progress = true;
     app->write_state = 1;  // Waiting for card
 
     laundr_log_transaction("Waiting for card...");
-    laundr_log_transaction("Writing balance: $%.2f (%d cents)", (double)balance / 100, balance);
+    laundr_log_transaction("Writing ENTIRE card (all 64 blocks)");
 
     // First, wait for card to be present by trying to read with known keys
     MfClassicError error = MfClassicErrorNotPresent;
@@ -2396,7 +2439,7 @@ static void laundr_write_to_card(LaundRApp* app) {
         }
 
         if(error == MfClassicErrorNone) {
-            laundr_log_transaction("Card detected, attempting write...");
+            laundr_log_transaction("Card detected, writing all blocks...");
             break;  // Card found!
         }
 
@@ -2412,6 +2455,12 @@ static void laundr_write_to_card(LaundRApp* app) {
         nfc_free(nfc);
         app->write_in_progress = false;
         laundr_log_transaction("No card found after waiting");
+
+        // Red LED for timeout
+        if(app->notifications) {
+            notification_message(app->notifications, &sequence_solid_red);
+        }
+
         widget_reset(app->widget);
         widget_add_string_element(app->widget, 64, 20, AlignCenter, AlignTop, FontPrimary, "No Card Found");
         widget_add_string_element(app->widget, 64, 40, AlignCenter, AlignTop, FontSecondary, "Timed out waiting");
@@ -2420,162 +2469,118 @@ static void laundr_write_to_card(LaundRApp* app) {
         return;
     }
 
-    // Card is present - now try to write block 4
-    // Try ALL known laundry/vending keys with both Key A and Key B
-    bool write_success = false;
-    size_t successful_key_idx = 0;
-    MfClassicKeyType successful_key_type = MfClassicKeyTypeA;
-
-    laundr_log_transaction("Trying %zu known keys...", num_keys);
-
-    // Try each key as both Key B (most likely for writes) and Key A
-    for(size_t k = 0; k < num_keys && !write_success; k++) {
-        // Try Key B first (usually used for writes)
-        MfClassicKey key_copy;
-        memcpy(&key_copy, &known_keys[k], sizeof(MfClassicKey));
-
-        error = mf_classic_poller_sync_write_block(
-            nfc, 4, &key_copy, MfClassicKeyTypeB, &block4);
-
-        if(error == MfClassicErrorNone) {
-            laundr_log_transaction("Block 4 written with key[%zu] as KeyB", k);
-            write_success = true;
-            successful_key_idx = k;
-            successful_key_type = MfClassicKeyTypeB;
-            break;
-        }
-
-        // Try Key A
-        error = mf_classic_poller_sync_write_block(
-            nfc, 4, &key_copy, MfClassicKeyTypeA, &block4);
-
-        if(error == MfClassicErrorNone) {
-            laundr_log_transaction("Block 4 written with key[%zu] as KeyA", k);
-            write_success = true;
-            successful_key_idx = k;
-            successful_key_type = MfClassicKeyTypeA;
-            break;
-        }
-    }
-
-    if(!write_success) {
-        laundr_log_transaction("All %zu keys failed for block 4", num_keys);
-        error = MfClassicErrorProtocol;
-    }
-
-    if(error != MfClassicErrorNone) {
-        // Write failed
-        nfc_free(nfc);
-        app->write_in_progress = false;
-        app->write_state = 4;  // Error
-
-        const char* error_msg = "Unknown error";
-        switch(error) {
-            case MfClassicErrorNotPresent: error_msg = "Card not found"; break;
-            case MfClassicErrorProtocol: error_msg = "Protocol error"; break;
-            case MfClassicErrorAuth: error_msg = "Auth failed"; break;
-            case MfClassicErrorTimeout: error_msg = "Timeout"; break;
-            default: error_msg = "Write failed"; break;
-        }
-
-        laundr_log_transaction("ERROR writing Block 4: %s", error_msg);
-        laundr_log_system("Write to Card FAILED: %s", error_msg);
-
-        // Show error
-        widget_reset(app->widget);
-        widget_add_string_element(app->widget, 64, 20, AlignCenter, AlignTop, FontPrimary, "Write Failed!");
-        widget_add_string_element(app->widget, 64, 40, AlignCenter, AlignTop, FontSecondary, error_msg);
-        widget_add_string_element(app->widget, 64, 55, AlignCenter, AlignTop, FontSecondary, "Press BACK");
-
-        view_dispatcher_switch_to_view(app->view_dispatcher, LaundRViewWidget);
-        return;
-    }
-
-    // Block 4 written successfully, now write block 8 (backup balance)
-    // Use the same key that worked for block 4
-    laundr_log_transaction("Block 4 written! Using same key for block 8...");
+    // Card is present - write ALL 64 blocks
     app->write_state = 2;  // Writing
+    int blocks_written = 0;
+    int blocks_failed = 0;
+    int blocks_skipped = 0;
 
-    MfClassicKey successful_key;
-    memcpy(&successful_key, &known_keys[successful_key_idx], sizeof(MfClassicKey));
+    laundr_log_transaction("Writing all blocks with %zu known keys...", num_keys);
 
-    error = mf_classic_poller_sync_write_block(
-        nfc, 8, &successful_key, successful_key_type, &block8);
+    // Write all 64 blocks
+    for(int block_num = 0; block_num < 64; block_num++) {
+        // Skip if we don't have valid data for this block
+        if(!app->modified_block_valid[block_num]) {
+            blocks_skipped++;
+            continue;
+        }
 
-    write_success = (error == MfClassicErrorNone);
+        // Prepare block data
+        MfClassicBlock block_data;
+        memcpy(block_data.data, app->modified_blocks[block_num], 16);
 
-    if(write_success) {
-        laundr_log_transaction("Block 8 written with same key");
-    } else {
-        // Try all keys for block 8 (different sector may have different key)
-        for(size_t k = 0; k < num_keys && !write_success; k++) {
+        bool block_written = false;
+
+        // Try each key as both Key B (most likely for writes) and Key A
+        for(size_t k = 0; k < num_keys && !block_written; k++) {
             MfClassicKey key_copy;
             memcpy(&key_copy, &known_keys[k], sizeof(MfClassicKey));
 
+            // Try Key B first (usually used for writes)
             error = mf_classic_poller_sync_write_block(
-                nfc, 8, &key_copy, MfClassicKeyTypeB, &block8);
+                nfc, block_num, &key_copy, MfClassicKeyTypeB, &block_data);
+
             if(error == MfClassicErrorNone) {
-                write_success = true;
+                block_written = true;
                 break;
             }
 
+            // Try Key A
             error = mf_classic_poller_sync_write_block(
-                nfc, 8, &key_copy, MfClassicKeyTypeA, &block8);
+                nfc, block_num, &key_copy, MfClassicKeyTypeA, &block_data);
+
             if(error == MfClassicErrorNone) {
-                write_success = true;
+                block_written = true;
                 break;
             }
         }
+
+        if(block_written) {
+            blocks_written++;
+            if(block_num % 16 == 0) {
+                // Update display every 16 blocks
+                widget_reset(app->widget);
+                widget_add_string_element(app->widget, 64, 5, AlignCenter, AlignTop, FontPrimary, "Writing Card...");
+                snprintf(app->widget_str1, sizeof(app->widget_str1), "Block %d/64", block_num);
+                widget_add_string_element(app->widget, 64, 25, AlignCenter, AlignTop, FontSecondary, app->widget_str1);
+                snprintf(app->widget_str2, sizeof(app->widget_str2), "Written: %d", blocks_written);
+                widget_add_string_element(app->widget, 64, 40, AlignCenter, AlignTop, FontSecondary, app->widget_str2);
+            }
+        } else {
+            blocks_failed++;
+            laundr_log_transaction("Block %d write failed", block_num);
+        }
     }
 
-    if(!write_success) {
-        // Block 8 write failed (but block 4 succeeded)
-        nfc_free(nfc);
-        laundr_log_transaction("WARNING: Block 8 write failed (Block 4 OK)");
-        laundr_log_system("Write to Card partial: Block 4 OK, Block 8 failed");
-
-        widget_reset(app->widget);
-        widget_add_string_element(app->widget, 64, 10, AlignCenter, AlignTop, FontPrimary, "Partial Write");
-        widget_add_string_element(app->widget, 64, 25, AlignCenter, AlignTop, FontSecondary, "Block 4 OK");
-        widget_add_string_element(app->widget, 64, 37, AlignCenter, AlignTop, FontSecondary, "Block 8 FAILED");
-
-        snprintf(app->widget_str1, sizeof(app->widget_str1), "$%.2f written", (double)balance / 100);
-        widget_add_string_element(app->widget, 64, 52, AlignCenter, AlignTop, FontSecondary, app->widget_str1);
-
-        view_dispatcher_switch_to_view(app->view_dispatcher, LaundRViewWidget);
-
-        app->write_in_progress = false;
-        app->write_state = 3;  // Done (partial)
-        return;
-    }
-
-    // Both blocks written successfully!
+    // Done writing
     nfc_free(nfc);
     app->write_in_progress = false;
     app->write_state = 3;  // Done
 
-    laundr_log_transaction("Block 8 written successfully");
     laundr_log_transaction("======================================");
     laundr_log_transaction("      WRITE TO CARD COMPLETE!         ");
     laundr_log_transaction("======================================");
-    laundr_log_transaction("Balance written: $%.2f", (double)balance / 100);
-    laundr_log_system("Write to Card SUCCESS: $%.2f", (double)balance / 100);
+    laundr_log_transaction("Blocks written: %d", blocks_written);
+    laundr_log_transaction("Blocks failed: %d", blocks_failed);
+    laundr_log_transaction("Blocks skipped: %d", blocks_skipped);
+    laundr_log_system("Write to Card: %d written, %d failed, %d skipped",
+        blocks_written, blocks_failed, blocks_skipped);
 
-    // Show success
+    // Show results
     widget_reset(app->widget);
-    widget_add_string_element(app->widget, 64, 10, AlignCenter, AlignTop, FontPrimary, "Write Complete!");
 
-    snprintf(app->widget_str1, sizeof(app->widget_str1), "$%.2f written", (double)balance / 100);
-    widget_add_string_element(app->widget, 64, 30, AlignCenter, AlignTop, FontSecondary, app->widget_str1);
-    widget_add_string_element(app->widget, 64, 45, AlignCenter, AlignTop, FontSecondary, "Blocks 4 & 8 OK");
+    if(blocks_failed == 0 && blocks_written > 0) {
+        widget_add_string_element(app->widget, 64, 5, AlignCenter, AlignTop, FontPrimary, "Write Complete!");
+        // Green LED + vibro for success
+        if(app->notifications) {
+            notification_message(app->notifications, &sequence_solid_green);
+        }
+    } else if(blocks_written > 0) {
+        widget_add_string_element(app->widget, 64, 5, AlignCenter, AlignTop, FontPrimary, "Partial Write");
+        // Yellow for partial
+        if(app->notifications) {
+            notification_message(app->notifications, &sequence_blink_yellow);
+        }
+    } else {
+        widget_add_string_element(app->widget, 64, 5, AlignCenter, AlignTop, FontPrimary, "Write Failed!");
+        // Red LED for failure
+        if(app->notifications) {
+            notification_message(app->notifications, &sequence_solid_red);
+        }
+    }
+
+    snprintf(app->widget_str1, sizeof(app->widget_str1), "Written: %d blocks", blocks_written);
+    widget_add_string_element(app->widget, 64, 22, AlignCenter, AlignTop, FontSecondary, app->widget_str1);
+
+    snprintf(app->widget_str2, sizeof(app->widget_str2), "Failed: %d blocks", blocks_failed);
+    widget_add_string_element(app->widget, 64, 34, AlignCenter, AlignTop, FontSecondary, app->widget_str2);
+
+    snprintf(app->widget_str3, sizeof(app->widget_str3), "Balance: $%.2f", (double)balance / 100);
+    widget_add_string_element(app->widget, 64, 46, AlignCenter, AlignTop, FontSecondary, app->widget_str3);
+
     widget_add_string_element(app->widget, 64, 58, AlignCenter, AlignTop, FontSecondary, "Press BACK");
 
     view_dispatcher_switch_to_view(app->view_dispatcher, LaundRViewWidget);
-
-    // Notify success
-    if(app->notifications) {
-        notification_message(app->notifications, &sequence_success);
-    }
 }
 
 // ============================================================================
@@ -3367,9 +3372,10 @@ static void laundr_load_csc_mastercard(LaundRApp* app) {
     memcpy(&app->original_blocks[3][10], key_b_ff, 6);
     app->original_block_valid[3] = true;
 
-    // Sector 1, Block 4: Balance ($50.00 = 5000 cents)
-    uint8_t block4[] = {0x88, 0x13, 0x0C, 0x00, 0x77, 0xEC, 0xF3, 0xFF,
-                        0x88, 0x13, 0x0C, 0x00, 0x04, 0xFB, 0x04, 0xFB};
+    // Sector 1, Block 4: Balance ($50.00 = 5000 cents) + Counter (16100 uses)
+    // Counter 16100 = 0x3EE4, inverted = 0xC11B
+    uint8_t block4[] = {0x88, 0x13, 0xE4, 0x3E, 0x77, 0xEC, 0x1B, 0xC1,
+                        0x88, 0x13, 0xE4, 0x3E, 0x04, 0xFB, 0x04, 0xFB};
     memcpy(app->original_blocks[4], block4, 16);
     app->original_block_valid[4] = true;
 
